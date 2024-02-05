@@ -18,4 +18,5 @@ pip install rstr-max
 
 ## License
 
-`rstr-max` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
+`rstr-max` is distributed under the terms of the [AGPLv3](https://www.gnu.org/licenses/agpl-3.0.html) license.
+
