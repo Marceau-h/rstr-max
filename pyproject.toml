@@ -37,7 +37,7 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-    "sklearn",
+    "scikit-learn",
 ]
 
 [project.urls]
