@@ -1,57 +1,41 @@
-from sys import stderr
-from typing import Generator, Iterable, Set, Optional, Dict
+from typing import Generator
 
 from sklearn.feature_extraction.text import CountVectorizer
 
-
-
-def half(vocab: list[tuple[str, int]], *, previous: Dict[str, int] = None) -> Optional[Dict[str, int]]:
-    if not vocab:
-        print("Warning: vocab is empty, half function will return `previous` !", file=stderr)
-        return previous
-
-    if previous is None:
-        is_previous = False
-        rstrs = {}
-    else:
-        assert isinstance(previous, dict), "previous should be a dict"
-        is_previous = True
-        rstrs = previous
-
-    last_seen_word = None
-    last_seen_count = None
-    for word, count in vocab:
-        if not last_seen_word:
-            last_seen_word = word
-            last_seen_count = count
+def half(vocab: list[tuple[str, int]]) -> Generator[tuple[str, int], None, None]:
+    last_seen = None
+    for v, c in vocab:
+        if not last_seen:
+            last_seen = (v, c)
             continue
 
-        if last_seen_word in word:
-            if last_seen_count == count:
-                # Check if we have a previous list of rstrs
-                # If we do, we check if the last_seen is in the previous list of rstrs
-                # If it is, we remove it from the lisr as it is not a rstr
-                # This happens because the first iteration is walking through the vocab list by lexographical order
-                # whereas the second iteration is walking through the vocab list by reverse lexographical order
-                # and a string could be extending from the right (first iteration) and from the left (second iteration)
-                if is_previous:
-                    pass
-                    if last_seen_word in rstrs:
-                        pass
-                        del rstrs[last_seen_word]
-                    last_seen_word = word
-                    last_seen_count = count
-                    continue
+        if last_seen[0] in v:
+            if last_seen[1] == c:
+                last_seen = (v, c)
+                continue
 
-        rstrs[last_seen_word] = last_seen_count
-        last_seen_word = None
-        last_seen_count = None
+        yield last_seen
+        last_seen = None
 
-    return rstrs
+
+def filter(result: list[tuple[str, int]]) -> list[tuple[str, int]]:
+    result = list(result)
+    for i, (v, c) in enumerate(result):
+        if not c:
+            continue
+
+        for j, (v2, c2) in enumerate(result[i + 1:], start=i + 1):
+            if not c2:
+                continue
+
+            if all((v in v2, c2 == c)):
+                result[i] = (v, 0)
+
+    return [x for x in result if x[1]]
 
 
 def max_repeated_substrings(
-        corpora: str | list[str],
+        s: str | list[str],
         *args,
         min_len: int = 1,
         min_count: int = 2,
@@ -60,18 +44,18 @@ def max_repeated_substrings(
         **kwargs
 ) -> list[tuple[str, int]]:
     # Argument validation
-    if isinstance(corpora, list):
-        if any(not isinstance(doc, str) for doc in corpora):
+    if isinstance(s, list):
+        if any(not isinstance(x, str) for x in s):
             raise ValueError("List should contain only strings")
         pass
-    elif isinstance(corpora, str):
-        corpora = [corpora]
+    elif isinstance(s, str):
+        s = [s]
 
     assert min_len > 0, "min_len should be equal or greater than 1"
     assert min_count > 0, "min_count should be equal or greater than 1"
 
     if max_len is None or max_count is None:
-        max_ = max(map(len, corpora))
+        max_ = max(map(len, s))
         max_len = max_len or max_
         max_count = max_count or max_
         del max_
@@ -81,9 +65,9 @@ def max_repeated_substrings(
 
     # Now we get to business
     cv = CountVectorizer(analyzer='char', ngram_range=(min_len, max_len))
-    cv = cv.fit(corpora)
+    cv = cv.fit(s)
 
-    counts = cv.transform(corpora).sum(axis=0).A1
+    counts = cv.transform(s).sum(axis=0).A1
 
     vocab = cv.get_feature_names_out()
 
@@ -91,15 +75,18 @@ def max_repeated_substrings(
 
     vocab = sorted(zip(vocab, counts))
 
-    result = half(vocab)
+    result = set(half(vocab))
 
-    vocab = sorted(vocab, reverse=True)
+    vocab = sorted(result, reverse=True)
 
-    result = half(vocab, previous=result)
+    result.update(half(vocab))
 
     del vocab
 
-    result = sorted(filter(lambda x: min_count <= x[1] <= max_count, result.items()), key=lambda x: x[1], reverse=True)
+    result = filter(result)
 
+    result = sorted(result, key=lambda x: x[1], reverse=True)
+
+    result = [x for x in result if min_count <= x[1] <= max_count]
+    result = [x for x in result if min_len <= len(x[0]) <= max_len]
     return result
-

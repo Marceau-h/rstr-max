@@ -9,3 +9,12 @@ print(
         min_len=3
     )
 )
+
+print(
+    rstr_max(
+        ["TOTOTITI"],
+        # min_count=2,
+        # min_len=3,
+        # max_len=10
+    )
+)
