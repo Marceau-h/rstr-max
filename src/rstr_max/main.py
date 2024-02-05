@@ -21,14 +21,8 @@ def half(vocab: list[tuple[str, int]]) -> Generator[tuple[str, int], None, None]
 def filter(result: list[tuple[str, int]]) -> list[tuple[str, int]]:
     result = list(result)
     for i, (v, c) in enumerate(result):
-        if not c:
-            continue
-
-        for j, (v2, c2) in enumerate(result[i + 1:], start=i + 1):
-            if not c2:
-                continue
-
-            if all((v in v2, c2 == c)):
+        for v2, c2 in result:
+            if v in v2 and c == c2 and v != v2:
                 result[i] = (v, 0)
 
     return [x for x in result if x[1]]
@@ -67,8 +61,7 @@ def max_repeated_substrings(
     cv = CountVectorizer(analyzer='char', ngram_range=(min_len, max_len))
     cv = cv.fit(s)
 
-    counts = cv.transform(s).sum(axis=0).A1
-
+    counts = cv.transform(s).sum(axis=0).A1.tolist()
     vocab = cv.get_feature_names_out()
 
     del cv
@@ -77,9 +70,10 @@ def max_repeated_substrings(
 
     result = set(half(vocab))
 
-    vocab = sorted(result, reverse=True)
+    vocab = sorted([(v[::-1], c) for v, c in vocab])
+    # vocab = sorted(result, reverse=True)
 
-    result.update(half(vocab))
+    result.update({(v[::-1], c) for v, c in half(vocab)})
 
     del vocab
 
@@ -87,6 +81,6 @@ def max_repeated_substrings(
 
     result = sorted(result, key=lambda x: x[1], reverse=True)
 
-    result = [x for x in result if min_count <= x[1] <= max_count]
-    result = [x for x in result if min_len <= len(x[0]) <= max_len]
+    result = tuple(x for x in result if min_count <= x[1] <= max_count)
+
     return result
